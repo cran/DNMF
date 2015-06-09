@@ -1,6 +1,6 @@
-#' Discrimant Non-Negative Matrix Factorization.
+#' Discriminant Non-Negative Matrix Factorization.
 #'
-#' Discrimant Non-Negative Matrix Factorization, DNMF, is to extend the Non-negative Matrix Factorization algorithm in 
+#' Discriminant Non-Negative Matrix Factorization, DNMF, is to extend the Non-negative Matrix Factorization algorithm in 
 #' order to extract features that enforce not only the spatial locality, but
 #'  also the separability between classes in a discriminant manner.
 #' 
@@ -17,33 +17,62 @@
 #' @param gamma the tradeoff value for the within scatter matrix, with the default value 0.1.  
 #' @param delta the tradeoff value for the between scatter matrix, with the default value 1e-4.
 #' @param maxIter the maximum iteration of update rules, with the default value 1000.
+#' @param log log2 data. Default is TRUE.
 #' @param tol the toleration of coverange, with the default value 1e-7.
 #' @param plotit whether plot H (V=WH). Default: FALSE.
 #' @param checkH whether or not check H. Default: TRUE. This parameter aims to 
 #' check whether or not the H safisfy the discriminant metagenes. Usually, this
 #' should be TRUE.
+#' @param ... to gplots::heatmap.2
+#' @import gplots
+#' @author Zhilong Jia and Xiang Zhang
 #' @export
 #' @examples
-#' r =2
-#' data =  matrix(1:12,3,4)
-#' trainlabel = c(1,1,2,2)
-#' DNMF_result <- DNMF(data, trainlabel, r, plotit=FALSE, checkH=FALSE)
+#' dat <- rbind(matrix(c(rep(3, 16), rep(8, 24)), ncol=5), 
+#' matrix(c(rep(5, 16), rep(5, 24)), ncol=5), 
+#' matrix(c(rep(18, 16), rep(7, 24)), ncol=5)) + 
+#' matrix(runif(120,-1,1), ncol=5)
+#' trainlabel <- c(1,1,2,2,2)
+#' 
+#' DNMF_result <- DNMF(dat, trainlabel, r=2)
+#' 
 #' 
 #' \dontrun{
-#' DNMF_result <- DNMF(data, trainlabel, r)
-#' DNMF_result <- DNMF(data, trainlabel, r=2, gamma=0.1, delta=0.0001, plotit=TRUE)
+#' # Gene ranking. dat is the raw read count maatrix with sample in column.
+#' 
+#' #normalising dat
+#' Sizefactors <- DESeq::estimateSizeFactorsForMatrix(dat)
+#' dat = sweep(dat, 2, Sizefactors, `/`)
+#' 
+#' res <- DNMF(dat, trainlabel, r=2)
+#' rnk <- res$rnk
+#' 
+#' #The end of gene ranking exmaples
+#' 
+#' #Other exmaples
+#' DNMF_result <- DNMF(dat, trainlabel, r=2, gamma=0.1, delta=0.0001, plotit=TRUE)
 #' }
 #' 
 
 DNMF <- function(data,trainlabel, r=2, gamma=0.1, delta=0.0001, maxIter=1000, 
-                 tol=1e-7, plotit=FALSE, checkH=TRUE) {
+                 tol=1e-7, log=TRUE, plotit=FALSE, checkH=TRUE, ...) {
 	
     data <- as.matrix(data)
+    data[which(data==0)] <- 1
+    
+    if (log){
+        data <- log2(data + 2) 
+    }
     nFea = nrow(data); nSmp = ncol(data)
     eps = .Machine$double.eps
     
     #init the H0 and W0 matrix
     H = matrix(runif(r*nSmp, eps), r, nSmp)
+    # The 1st row of H is down-regualted genes, 
+    # while the 2nd row of H is up-regualted genes)
+    for (i in 1:r){
+        H[i,which(trainlabel==names(table(trainlabel))[i])] = H[i,which(trainlabel==names(table(trainlabel))[i])] + sum(H)
+    }
     H = pmax(H,0)
     W = matrix(runif(nFea*r, eps), nFea, r)
     W = W/colSums(W)
@@ -96,9 +125,9 @@ while (final > tol && count <= maxIter) {
     obj_stack[count] = obj1
     count = count + 1
 }
-    # to plot the convergence of the object function
+    # to plot H
     if (plotit){
-    	heatmap(H)
+        gplots::heatmap.2(H, scale="row", trace="none", density.info="none", keysize=1, cexCol=0.8, srtCol=30, ...)
     }
     
 
@@ -116,7 +145,7 @@ while (final > tol && count <= maxIter) {
         }
     }
     
-    list(W=W, H=H, trainlabel=trainlabel, meanH=meanH, delta=delta, gamma=gamma, count=count,
+    list(V=data, W=W, H=H, rnk=W[,2]-W[,1], trainlabel=trainlabel, delta=delta, gamma=gamma, count=count,
          final=final, obj_stack=obj_stack, r=r, call=match.call())
 }
 
