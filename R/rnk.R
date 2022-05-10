@@ -1,12 +1,13 @@
 #' write rnk to a file from matrix W.
 #' 
 #' write a rnk file from matrix W in a returned object of function \code{DNMF}.
-#' The rnk format is referred \href{http://www.broadinstitute.org/cancer/software/gsea/wiki/index.php/Data_formats}{RNK}
+#' The rnk format is referred \href{https://software.broadinstitute.org/cancer/software/gsea/wiki/index.php/Data_formats}{RNK}
 #' 
 #' @param object a returned object of function \code{DNMF}
 #' @param fn the output filename. Default is "./tmp.rnk"
 #' @param type type o2m (Default) or o2o. to compare with multi sample labels. 
 #' o2m means one Vs others, while o2o means one Vs another one.
+#' @importFrom utils write.table
 #' @export
 #' @examples
 #' \dontrun{
